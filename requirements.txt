@@ -1,4 +1,4 @@
 agno
-ollama
+openai
 youtube_transcript_api
 streamlit
