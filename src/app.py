@@ -1,8 +1,12 @@
-from textwrap import dedent
 import streamlit as st
+from textwrap import dedent
 from agno.agent import Agent
-from agno.models.ollama import Ollama
 from agno.tools.youtube import YouTubeTools
+import os 
+from dotenv import load_dotenv
+
+load_dotenv()
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # Set page configuration
 st.set_page_config(
@@ -11,13 +15,10 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("UTube Video Analysis 📹🔍")
-
 def myagent() -> Agent:
     """Create and configure the YouTube analysis agent"""
     youtube_agent = Agent(
         name="YouTube Agent",
-        model=Ollama(id="llama3.1"),
         tools=[YouTubeTools()],
         show_tool_calls=True,
         instructions=dedent(f"""\
@@ -67,47 +68,89 @@ def myagent() -> Agent:
     )
     return youtube_agent
 
-def process_query():
-    """Handle query processing with error handling"""
-    youtube_agent = myagent()
+def compact_sidebar():
+    """Create a more compact sidebar with collapsible examples"""
+    with st.sidebar:
+        st.markdown("### Quick Analysis Templates 🎯")
+        analysis_types = {
+            "Tutorial": {
+                "emoji": "💻",
+                "description": "Code examples & steps",
+                "prompt": "Analyze code examples and implementation steps"
+            },
+            "Educational": {
+                "emoji": "📚",
+                "description": "Learning material",
+                "prompt": "Create study guide with key concepts"
+            },
+            "Review": {
+                "emoji": "📱",
+                "description": "Product analysis",
+                "prompt": "Extract features and comparisons"
+            },
+            "Creative": {
+                "emoji": "🎨",
+                "description": "Art & design",
+                "prompt": "Document techniques and methods"
+            }
+        }
+        
+        selected_type = st.selectbox(
+            "Select Analysis Type",
+            options=list(analysis_types.keys()),
+            format_func=lambda x: f"{analysis_types[x]['emoji']} {x}"
+        )
+        
+        with st.expander("Analysis Details", expanded=False):
+            st.markdown(f"**{analysis_types[selected_type]['description']}**")
+            st.markdown(f"Default prompt: _{analysis_types[selected_type]['prompt']}_")
+        
+        return selected_type, analysis_types[selected_type]['prompt']
+
+def main_content(analysis_type, default_prompt):
+    """Handle main content area with URL and prompt inputs"""
+    st.title("UTube Video Analysis 📹🔍")
     
-    col1, col2 = st.columns([3, 1])
+    col1, col2 = st.columns([2, 1])
+    
     with col1:
-        query = st.text_input(
-            "Enter YouTube video URL:",
-            value=st.session_state.get("example_query", "")
+        video_url = st.text_input(
+            "Enter YouTube URL:",
+            placeholder="https://youtube.com/..."
         )
     
-    if st.button("Analyze Video 📊") and query:
-        try:
-            with st.spinner("🔍 Analyzing video content..."):
-                result = youtube_agent.run(query)
-                st.success("✅ Analysis Complete!")
-                st.markdown(result.content)
-        
-        except Exception as e:
-            st.error("⚠️ Server Error: Please try again later")
-            st.error(f"Technical details: {str(e)}")
-
-def streamlit_UI():
-    """Create sidebar with example queries"""
-    with st.sidebar:
-        st.header("Example Queries 🚀")
-        examples = [
-            ("Tutorial Analysis", "Break down this Python tutorial with focus on code examples"),
-            ("Educational Content", "Create a study guide with timestamps for this math lecture"),
-            ("Tech Review", "List all product features mentioned with timestamps"),
-            ("Creative Content", "Break down the techniques shown in this art tutorial")
-        ]
-        
-        for category, example in examples:
-            st.caption(f"{category}:")
-            if st.code(example, language="bash"):
-                st.session_state.example_query = example
+    with col2:
+        custom_prompt = st.checkbox("Customize Analysis Prompt")
+    
+    if custom_prompt:
+        analysis_prompt = st.text_area(
+            "Analysis Instructions:",
+            value=default_prompt,
+            height=100
+        )
+    else:
+        analysis_prompt = default_prompt
+    
+    if st.button("Analyze Video 🔍", type="primary"):
+        if video_url:
+            try:
+                youtube_agent = myagent()
+                with st.spinner("📊 Processing video content..."):
+                    result = youtube_agent.run(f"URL: {video_url}\nInstructions: {analysis_prompt}")
+                    st.success("✅ Analysis Complete!")
+                    
+                    with st.expander("View Analysis", expanded=True):
+                        st.markdown(result.content)
+            except Exception as e:
+                st.error("⚠️ Analysis failed. Please check your URL and try again.")
+                with st.expander("Technical Details"):
+                    st.code(str(e))
+        else:
+            st.warning("⚠️ Please enter a YouTube URL")
 
 def main():
-    streamlit_UI()
-    process_query()
+    analysis_type, default_prompt = compact_sidebar()
+    main_content(analysis_type, default_prompt)
 
 if __name__ == "__main__":
     main()
