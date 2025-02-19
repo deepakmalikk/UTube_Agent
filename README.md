@@ -94,7 +94,11 @@ streamlit run app.py
 
 - Secure API key handling through environment variables  
 - Input validation and sanitization  
-- Error handling and graceful failure modes  
+- Error handling and graceful failure modes
+
+## 🚀 Deployment
+
+🔗 Live Demo: [https://utubeagent.streamlit.app/]
 
 ## 🤝 Contributing
 
